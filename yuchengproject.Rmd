@@ -1,0 +1,435 @@
+### Import starting libraries
+```{r}
+library(readr)
+library(tidyverse)
+library(readxl)
+```
+
+```{r}
+counts <- read_csv("/stor/work/Bio321G_RY_Spring2024/MiniProjects/Hide_and_Seek/data/20240207_Retina_Raw_counts.csv")
+counts = counts %>% column_to_rownames("...1")
+metadata <- read_excel("/stor/work/Bio321G_RY_Spring2024/MiniProjects/Hide_and_Seek/data/metadata_retina_tagseq.xlsx")
+names(metadata)[names(metadata) == 'Sample.Name'] <- 'sample_id'
+metadata
+head(counts)
+```
+
+```{r}
+ncol(counts)
+nrow(counts)
+```
+
+```{r}
+individualData <- read_excel("/stor/work/Bio321G_RY_Spring2024/MiniProjects/Hide_and_Seek/data/TilapiaRetina_IndividualData.xlsx", skip = 1)
+labels(individualData)
+```
+
+```{r}
+editAge <- data.frame(individualData["Age"])
+curr <- editAge[1,]
+
+for(i in 1:nrow(editAge) - 1){
+  ifelse(is.na(editAge[i,]), editAge[i,] <- curr, curr <- editAge[i,])
+}
+
+editAge <- editAge$Age
+individualData <- select(individualData, !Age)
+individualData <- individualData %>% mutate(Ages = c(editAge))
+```
+
+```{r}
+TPM <- function(counts) {
+  reads_per_kilbase <- counts / 2000 #Because thats how much we can read at a time
+  per_million <- sum(reads_per_kilbase, na.rm= TRUE) / 1e6
+  tpms <- reads_per_kilbase / per_million
+}
+
+tpms <-counts 
+head(tpms)
+head(colnames(tpms))
+```
+
+```{r}
+for(i in 1:ncol(tpms)){
+  tpms[,i] <- (TPM(tpms[,i]))
+}
+head(tpms)
+```
+
+```{r}
+log_tpms<- log(tpms) 
+log_tpms[!is.finite(as.matrix(log_tpms))] <- 0
+```
+
+```{r}
+x<- log_tpms %>% t()
+PC_x <- prcomp(x)
+
+var_explained <- data.frame(PC = paste0("PC", 1:ncol(PC_x$x)), var_explained=(PC_x$sdev)^2/sum((PC_x$sdev)^2))
+
+PC1to9_Var <- var_explained[1:9,]
+PC1to9_Var
+
+```
+
+```{r}
+x <- log_tpms %>% t() #Turn into matrix with t()
+
+PC_x <- prcomp(x)
+
+var_explained <- data.frame(PC = paste0("PC", 1:ncol(PC_x$x)), var_explained=(PC_x$sdev)^2/sum((PC_x$sdev)^2))
+
+PC1to9_Var <- var_explained[1:9,]
+
+
+ggplot(PC1to9_Var, aes(x=PC,y=var_explained*100, group=1))+ 
+   geom_point(size=4)+
+  geom_line()+
+  labs(title="Scree plot") + 
+  theme_classic(base_family = "Times", 
+                base_size = 14)+
+  NULL
+```
+
+```{r}
+
+PCs_x<-data.frame(PC_x$x) %>%
+  rownames_to_column(var = "sample_id") #make sample IDs a column to facilitate adding other metadata
+
+PCs_x<-left_join(PCs_x, metadata)
+
+ggplot(data = PCs_x, aes(x =PC1, y=PC2, label = sample_id)) +
+  geom_point(size = 4)+ geom_text(check_overlap = FALSE, nudge_x = 10,
+  nudge_y = 10) + theme_classic(base_family = "Times", base_size = 14) +
+  NULL
+
+```
+
+
+```{r}
+ggplot(PC1to9_Var, aes(x=PC,y=var_explained*100, group=1))+ 
+   geom_point(size=4)+
+  geom_line()+
+  labs(title="Scree plot") + 
+  theme_classic(base_family = "Times", 
+                base_size = 14)+
+  NULL
+
+
+```
+
+
+
+```{r}
+
+PCs_x<-data.frame(PC_x$x) %>%
+  rownames_to_column(var = "sample_id") #make sample IDs a column to facilitate adding other metadata
+
+PCs_x<-left_join(PCs_x, metadata)
+
+PCs_x<-data.frame(PC_x$x) %>%
+  rownames_to_column(var = "sample_id") #make sample IDs a column to facilitate adding other metadata
+
+PCs_x<-left_join(PCs_x, metadata)
+
+ggplot(data = PCs_x, aes(x =PC1, y=PC2)) +
+  geom_point()+
+  theme_classic(base_family = "Times", 
+                base_size = 14)+
+  NULL
+```
+
+
+```{r}
+log_tpms_outlierRemove<-log_tpms %>%
+  select(-A2_17E1R, -D2_17E4R)
+
+x<-log_tpms_outlierRemove %>%
+  t()
+
+PC_x<-prcomp(x)
+
+var_explained <- data.frame(PC= paste0("PC",1:ncol(PC_x$x)),
+                                var_explained=(PC_x$sdev)^2/sum((PC_x$sdev)^2)) 
+
+
+PC1to9_Var<-var_explained[1:9,] 
+PC1to9_Var
+```
+```{r}
+colnames(PCs_x)
+```
+
+```{r}
+unique(PCs_x$Day)
+unique(PCs_x$mother)
+unique(PCs_x$brood)
+unique(PCs_x$brood_mother)
+
+```
+
+```{r}
+
+PCs_x<-data.frame(PC_x$x) %>%
+  rownames_to_column(var = "sample_id") #make sample IDs a column to facilitate adding other metadata
+
+PCs_x<-left_join(PCs_x, metadata)
+
+PCs_x<-data.frame(PC_x$x) %>%
+  rownames_to_column(var = "sample_id") #make sample IDs a column to facilitate adding other metadata
+
+PCs_x<-left_join(PCs_x, metadata)
+
+ggplot(data = PCs_x, aes(x =PC1, y=PC2, color = Day)) +
+  geom_point()+
+  theme_classic(base_family = "Times", 
+                base_size = 14 )+
+  NULL
+```
+
+```{r}
+ggplot(data = PCs_x, aes(x = Day, y=PC2, fill = mother)) +
+  geom_boxplot()+
+  theme_classic(base_family = "Times", 
+                base_size = 14)+
+  NULL
+
+```
+```{r}
+ggplot(data = PCs_x, aes(x = Day, y=PC2, fill = brood)) +
+  geom_boxplot()+
+  theme_classic(base_family = "Times", 
+                base_size = 14)+
+  NULL
+
+```
+
+```{r}
+ggplot(data = PCs_x, aes(x = mother, y=PC2, fill = mother)) +
+  geom_boxplot()+
+  theme_classic(base_family = "Times", 
+                base_size = 14)+
+  NULL
+
+```
+
+```{r}
+individualData <- individualData %>% na.omit(individualData)
+
+grouped_data <- individualData %>% group_by(Ages) %>% summarise(L1 = mean(L1), L2 = mean(L2), L3 = mean(L3), D1 = mean(D1), D2 = mean(D2), D3 = mean(D3))
+grouped_data
+
+
+
+```
+
+```{r}
+batch1_data  <- individualData %>% filter(Batch == 1) %>% filter(Ages == "12 dpf")
+(batch1_data)
+
+ggplot(batch1_data, aes(x=L1, y=Sample)) +
+  geom_line()
+```
+
+```{r}
+batch1_data  <- individualData %>% filter(Batch == 1) %>% filter(Ages == "17 dpf")
+(batch1_data)
+
+ggplot(batch1_data, aes(x=L1, y=Sample)) +
+  geom_line()
+```
+
+```{r}
+PCs_x_motherR <- PCs_x %>% filter(mother == "R")
+mR_sample_ids <- PCs_x_motherR$sample_id
+mR_sample_ids
+
+log_tpms_outlierRemove<-log_tpms %>%
+  select(mR_sample_ids)
+
+x<-log_tpms_outlierRemove %>%
+  t()
+
+PCs_x<-prcomp(x)
+
+var_explained <- data.frame(PC= paste0("PC",1:ncol(PC_x$x)),
+                                var_explained=(PC_x$sdev)^2/sum((PC_x$sdev)^2)) 
+
+
+PC1to9_Var<-var_explained[1:9,] 
+PC1to9_Var
+
+
+```
+
+```{r}
+PCs_x<-data.frame(PC_x$x) %>%
+  rownames_to_column(var = "sample_id") #make sample IDs a column to facilitate adding other metadata
+
+PCs_x<-left_join(PCs_x, metadata)
+
+ggplot(data = PCs_x, aes(x =PC1, y=PC2, color = Day)) +
+  geom_point()+
+  theme_classic(base_family = "Times", 
+                base_size = 14 )+
+  NULL
+
+```
+```{r}
+PCs_x<-data.frame(PC_x$x) %>%
+  rownames_to_column(var = "sample_id") #make sample IDs a column to facilitate adding other metadata
+
+PCs_x<-left_join(PCs_x, metadata)
+
+ggplot(data = PCs_x, aes(x =PC1, y=PC2, color = mother)) +
+  geom_point()+
+  theme_classic(base_family = "Times", 
+                base_size = 14 )+
+  NULL
+
+```
+
+
+
+```{r}
+raw_counts_noOutlier<-counts %>%
+  select(-A2_17E1R, -D2_17E4R)
+
+#we need to limit this metadata table to the samples we will include in the DESeq2 analysis and make sure the samples are listed in the same order
+
+samples<-data.frame(sample_id = colnames(raw_counts_noOutlier))
+
+samples_metadata<-left_join(samples, metadata,by = join_by(sample_id))
+
+sampleTable<- data.frame(time = samples_metadata$Day) 
+rownames(sampleTable)<-samples_metadata$sample_id
+#make sure that the order of samples is the same
+identical(rownames(sampleTable), colnames(raw_counts_noOutlier))
+```
+
+
+```{r}
+#now replace the sample_ids with grouped_stage for DESeq2 analysis
+colnames(raw_counts_noOutlier)<-sampleTable$time
+
+#DESeq2 requires counts to be a matrix not a data.frame
+raw_counts_noOutlier<-na.omit(as.matrix(raw_counts_noOutlier))
+
+dds <- DESeqDataSetFromMatrix(countData = raw_counts_noOutlier,
+                              colData = sampleTable,
+                              design = ~time)
+dds
+```
+
+```{r}
+#Before running DESeq2, we need to set the order of factors, because we want to compare early to middle and middle to late, we order middle first
+dds$condition <- factor(dds$time, 
+                        levels = c("12","17"))
+dds <- DESeq(dds)
+# we can compare any two stages using the contrast. time is the name of the factor we are comparing. We want to compare early and middle time points. The time listed first becomes the numerator, the one listed second is the denominator
+res_12_over_17 <- results(dds,
+                            contrast = c("time", "12","17" )) #middle will be the numerator middle/early. genes with LFC < 0 have higher expression at the early time point and genes with LFC > 0 have higher expression at the later time point. When comparing middle to late, would it make sense to put middle first or second? I like to name the analysis to make this very clear "...middle_over_early"
+summary(res_12_over_17)
+```
+
+
+```{r}
+resOrdered<- res_12_over_17[order(res_12_over_17$padj),] #orders the output by adjusted p-value. 
+DE_12_over_17<-as.data.frame(resOrdered) #makes a dataframe with the genes ordered by adjusted p-value
+#?order
+```
+```{r}
+#basic volcano plot. 
+  EnhancedVolcano(DE_12_over_17,
+    lab = rownames(DE_12_over_17),
+    x = 'log2FoldChange',
+    y = 'padj')
+```
+```{r}
+?EnhancedVolcano
+ EnhancedVolcano(DE_12_over_17,
+    lab = rownames(DE_12_over_17),
+    labSize=3,
+    title = '17 (-LFC) versus 12 (+LFC)', #add a title to help remember directionality 
+    subtitle = NULL, #I don't need the EnhancedVolcano subtitle
+    legendLabels=c('NS',
+                   'Log (base 2) FC','adj p-value', 
+                   'adj p-value & Log (base 2) FC'), #modify labels
+  legendLabSize = 11,
+  caption = 'ENSONIG00000004150:rdh20, 
+             ENSONIG00000019589:WFIKKN2',
+  
+  captionLabSize=11,
+  
+    x = 'log2FoldChange',
+    y = 'padj',
+    xlab = "Log (base 2) fold difference",
+    ylab = "-Log (base 10) adjusted p-value",
+    ylim = c(0,35), #the one outliter sample at ~Log10 adj p-value of ~70 is squishing the axis. remove this to better visualize the rest of the genes
+    xlim = c(-4,4)) #for volcano plots I prefer a balanced x-axis around zero this tells you if you see larger expression changes in either direction. 
+```
+
+
+```{r}
+#Challenge
+new_df <- DE_12_over_17 %>% 
+  filter((log2FoldChange <-1 |
+         log2FoldChange > 1 ) & (padj < 0.05)
+         ) %>% 
+  arrange(desc((padj))) %>% 
+  head(10) %>% 
+  rownames()
+new_df
+
+
+top_genes <- row.names(ordered)
+?row.names
+?heatmap
+?pheatmap
+heatmap <- pheatmap(log_tpms_outlierRemove[new_df,],
+                    scale = "row",
+                    cluster_rows= TRUE,
+                    cluster_cols=TRUE,
+                    Rowv = FALSE, symm = TRUE,
+                    xlab = "sample ID", ylab =  "genes",
+                    distfun = function(c) as.dist(1 - c), keep.dendro = TRUE,
+                    method = "minkowski"
+                    )
+```
+
+```{r}
+#ANOVA Test: Analysis of Variance
+anova <- aov(PC1 ~ Day,
+  data = PCs_x
+)
+
+summary(anova)
+```
+```{r}
+#ANOVA Test: Analysis of Variance
+anova <- aov(PC1 ~ brood_mother,
+  data = PCs_x
+)
+
+summary(anova)
+```
+```{r}
+#ANOVA Test: Analysis of Variance
+anova <- aov(PC1 ~ brood,
+  data = PCs_x
+)
+
+summary(anova)
+```
+
+
+```{r}
+tukey.plot.aov<-aov(PC1 ~ Day, data=PCs_x)
+tukey.plot.test<-TukeyHSD(tukey.plot.aov)
+plot(tukey.plot.test, las = 1)
+```
+
+
+
+
+
