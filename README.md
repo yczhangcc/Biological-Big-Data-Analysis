@@ -114,6 +114,3 @@ For questions or further contributions, please contact [Your Name] at [Your Emai
 
 This README provides a detailed yet user-friendly introduction to the RNA-seq data analysis workflow. Data scientists and engineers can leverage this workflow to automate RNA-seq data processing, make it scalable, and integrate machine learning for enhanced analysis 💡.
 
---- 
-
-Feel free to tweak any of the emojis or details to suit your style! 😊
